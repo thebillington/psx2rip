@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+set -e
+
+for cmd in diskutil grep awk sed dd; do
+  command -v "$cmd" >/dev/null || { echo "$cmd not found"; exit 1; }
+done
+
+db="$HOME/.ps2rip/GameIndex.yaml"
+[ ! -f "$db" ] && echo "GameIndex.yaml not found at $db" && exit 1
+
+echo "detecting drive..."
+drive=$(diskutil list | awk '/^\/dev\/disk/ {d=$1} /\(external, physical\)/ {print d; exit}')
+[ -z "$drive" ] && echo "no drive found" && exit 1
+echo "drive: $drive"
+
+echo "mounting..."
+diskutil mountDisk "$drive" >/dev/null
+
+echo "reading serial..."
+serial=$(grep -o 'S[CL]ES_[0-9]\{3\}\.[0-9]\{2\}\|SLUS_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF 2>/dev/null | head -n1)
+[ -z "$serial" ] && echo "no serial found" && exit 1
+echo "serial: $serial"
+
+id=$(echo "$serial" | sed 's/_/-/; s/\.//')
+
+echo "looking up name..."
+name=$(grep -A1 "$id" "$db" 2>/dev/null | grep 'name:' | sed 's/.*name: "\(.*\)"/\1/')
+
+if [ -z "$name" ]; then
+  echo "not found $serial"
+  read -p "name: " name
+fi
+
+echo "game: $name"
+
+echo "detecting media type..."
+media=$(diskutil info "$drive" | awk -F': ' '/Optical Media Type/ {print $2}')
+echo "media: $media"
+
+bin="${name}.bin"
+toc="${name}.toc"
+cue="${name}.cue"
+iso="${name}.iso"
+chd="${name}.chd"
+
+echo "unmounting..."
+diskutil unmountDisk "$drive" >/dev/null
+
+if [[ "$media" == *CD* ]]; then
+  echo "CD detected"
+
+  command -v cdrdao >/dev/null || { echo "installing cdrdao..."; brew install cdrdao; }
+  command -v toc2cue >/dev/null || { echo "installing cdrtools..."; brew install cdrtools; }
+
+  echo "ripping CD..."
+  echo "progress shown as MM:SS:FF (minutes:seconds:frames, 75 frames/sec)"
+  cdrdao read-cd --read-raw --datafile "$bin" "$toc"
+
+  echo "converting toc → cue..."
+  toc2cue "$toc" "$cue"
+
+  input="$cue"
+
+else
+  echo "DVD detected"
+
+  if command -v pv >/dev/null; then
+    size=$(diskutil info "$drive" | awk -F'[()]' '/[0-9]+ Bytes/ {print $2}' | awk '{print $1}' | head -n1)
+    echo "ripping..."
+    dd if="$drive" bs=4M 2>/dev/null | pv -s "$size" > "$iso"
+  else
+    echo "ripping (no %)..."
+    dd if="$drive" of="$iso" bs=4M status=progress
+  fi
+
+  input="$iso"
+fi
+
+if command -v chdman >/dev/null; then
+  echo "compressing..."
+  chdman createcd -i "$input" -o "$chd"
+  rm -f "$iso" "$bin" "$toc" "$cue"
+  echo "done: $chd"
+else
+  echo "done: $input (no chdman)"
+fi
