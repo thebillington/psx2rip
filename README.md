@@ -99,7 +99,7 @@ drive=$(diskutil list | awk '/^\/dev\/disk/ {d=$1} /\(external, physical\)/ {pri
 ```bash
 diskutil mountDisk "$drive"
 
-serial=$(grep -o 'S[CL]ES_[0-9]\{3\}\.[0-9]\{2\}\|SLUS_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF | head -n1)
+serial=$(grep -o 'S[A-Z]\{3\}_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF | head -n1)
 ```
 
 Normalize format:

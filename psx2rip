@@ -20,7 +20,7 @@ echo "mounting..."
 diskutil mountDisk "$drive" >/dev/null
 
 echo "reading serial..."
-serial=$(grep -o 'S[CL]ES_[0-9]\{3\}\.[0-9]\{2\}\|SLUS_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF 2>/dev/null | head -n1)
+serial=$(grep -o 'S[A-Z]\{3\}_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF 2>/dev/null | head -n1)
 [ -z "$serial" ] && echo "no serial found" && exit 1
 echo "serial: $serial"
 
