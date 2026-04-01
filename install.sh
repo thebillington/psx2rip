@@ -44,13 +44,6 @@ if command -v brew >/dev/null; then
     echo "cdrdao already installed"
   fi
 
-  if ! brew list --formula | grep -q "^cdrtools$"; then
-    read -p "install cdrtools (toc2cue)? (y/n): " confirm
-    [ "$confirm" = "y" ] && brew install cdrtools
-  else
-    echo "cdrtools already installed"
-  fi
-
 else
   echo "homebrew not found, skipping optional installs"
 fi

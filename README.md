@@ -2,7 +2,7 @@
 
 `psx2rip` is a lightweight Bash utility for Unix-like systems to pull PSX (PlayStation 1) and PS2 games from disc into compressed CHD format. It was built and tested on macOS (Apple Silicon).
 
-The utility will likely work on Linux using Homebrew, but has not been tested.
+The utility will should work on Linux using Homebrew and with replacement of `diskutil`, but has not been tested.
 
 ---
 
@@ -10,11 +10,11 @@ The utility will likely work on Linux using Homebrew, but has not been tested.
 
 ### PSX
 
-PSX ripping is fully supported. Automatic game name detection is supported via DuckStation’s database `gamedb.yaml`. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should contribute upstream.
+PSX ripping is fully supported. Automatic game name detection is supported via DuckStation’s database `gamedb.yaml`. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should [contribute upstream](https://github.com/stenzek/duckstation/blob/master/README.md).
 
 ### PS2
 
-Both CD and DVD based PS2 titles are supported. The utility pulls `GameIndex.yaml` from PCSX2 in order to identify game titles from their serial. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should contribute upstream.
+Both CD and DVD based PS2 titles are supported. The utility pulls `GameIndex.yaml` from PCSX2 in order to identify game titles from their serial. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should [contribute upstream](https://pcsx2.net/docs/contributing/).
 
 ---
 
@@ -24,8 +24,8 @@ Both CD and DVD based PS2 titles are supported. The utility pulls `GameIndex.yam
 
 The installation script requires `brew` which is available on macOS and Linux:
 
-- https://brew.sh/  
-- https://docs.brew.sh/Homebrew-on-Linux  
+- [https://brew.sh](https://brew.sh)
+- [https://docs.brew.sh/Homebrew-on-Linux](https://docs.brew.sh/Homebrew-on-Linux)
 
 ---
 
@@ -40,9 +40,12 @@ The install script:
 
 1. Moves the `psx2rip` script to `/usr/local/bin`
 2. Downloads:
-   - DuckStation `gamedb.yaml` (PSX)
-   - PCSX2 `GameIndex.yaml` (PS2)
-3. Installs required tools via Homebrew
+   - DuckStation [gamedb.yaml](https://github.com/stenzek/duckstation/blob/master/data/resources/gamedb.yaml) (PSX)
+   - PCSX2 [GameIndex.yaml](https://github.com/PCSX2/pcsx2/blob/master/bin/resources/GameIndex.yaml) (PS2)
+3. Install requires tools via Homebrew
+  - `rom-tools` for `chdman` - used to compress the image
+  - `pv` - used to calculate percentage of rip for DVD based PS2 games
+  - `cdrdao` - used to rip CD based PSX and PS2 games
 
 ---
 
@@ -153,14 +156,12 @@ diskutil unmountDisk "$drive"
 
 ```bash
 cdrdao read-cd --read-raw --datafile "$bin" "$toc"
-toc2cue "$toc" "$cue"
-input="$cue"
+input="$toc"
 ```
 
 Produces:
 - `.bin`
 - `.toc`
-- `.cue`
 
 ---
 
@@ -179,7 +180,7 @@ input="$iso"
 
 ```bash
 chdman createcd -i "$input" -o "$chd"
-rm -f "$iso" "$bin" "$toc" "$cue"
+rm -f "$iso" "$bin" "$toc"
 ```
 
 If `chdman` is unavailable, raw output is kept.
@@ -189,7 +190,7 @@ If `chdman` is unavailable, raw output is kept.
 ## Output
 
 - Preferred: `.chd`
-- Fallback: `.cue` / `.iso`
+- Fallback: `.toc` / `.iso`
 
 Compatible with:
 - DuckStation (PSX)

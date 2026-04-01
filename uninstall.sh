@@ -25,11 +25,6 @@ if command -v brew >/dev/null; then
     read -p "remove cdrdao? (y/n): " confirm
     [ "$confirm" = "y" ] && brew uninstall cdrdao
   fi
-
-  if brew list --formula | grep -q "^cdrtools$"; then
-    read -p "remove cdrtools (toc2cue)? (y/n): " confirm
-    [ "$confirm" = "y" ] && brew uninstall cdrtools
-  fi
 fi
 
 echo "done"
