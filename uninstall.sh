@@ -3,10 +3,10 @@
 set -e
 
 echo "removing binary..."
-sudo rm -f /usr/local/bin/ps2rip
+sudo rm -f /usr/local/bin/psx2rip
 
 echo "removing data..."
-rm -rf "$HOME/.ps2rip"
+rm -rf "$HOME/.psx2rip"
 
 if command -v brew >/dev/null; then
   echo "checking installed tools..."

@@ -3,14 +3,21 @@
 set -e
 
 echo "installing binary..."
-sudo install -m 755 ps2rip /usr/local/bin/ps2rip
+sudo install -m 755 psx2rip /usr/local/bin/psx2rip
 
 echo "setting up data directory..."
-mkdir -p "$HOME/.ps2rip"
+data_dir="$HOME/.psx2rip"
+mkdir -p "$data_dir"
 
-if [ ! -f "$HOME/.ps2rip/GameIndex.yaml" ]; then
-  echo "downloading GameIndex..."
-  curl -L -o "$HOME/.ps2rip/GameIndex.yaml" \
+if [ ! -f "$data_dir/gamedb.yaml" ]; then
+  echo "downloading Duckstation gamedb..."
+  curl -L -o "$data_dir/gamedb.yaml" \
+    https://raw.githubusercontent.com/stenzek/duckstation/master/data/resources/gamedb.yaml
+fi
+
+if [ ! -f "$data_dir/GameIndex.yaml" ]; then
+  echo "downloading PCSX2 GameIndex..."
+  curl -L -o "$data_dir/GameIndex.yaml" \
     https://raw.githubusercontent.com/PCSX2/pcsx2/master/bin/resources/GameIndex.yaml
 fi
 
@@ -48,4 +55,4 @@ else
   echo "homebrew not found, skipping optional installs"
 fi
 
-echo "installed ps2rip"
+echo "installed psx2rip"

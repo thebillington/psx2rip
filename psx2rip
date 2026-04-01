@@ -6,8 +6,10 @@ for cmd in diskutil grep awk sed dd; do
   command -v "$cmd" >/dev/null || { echo "$cmd not found"; exit 1; }
 done
 
-db="$HOME/.ps2rip/GameIndex.yaml"
-[ ! -f "$db" ] && echo "GameIndex.yaml not found at $db" && exit 1
+psxdb="$HOME/.psx2rip/gamedb.yaml"
+[ ! -f "$psxdb" ] && echo "gamedb.yaml not found at $psxdb"
+ps2db="$HOME/.psx2rip/GameIndex.yaml"
+[ ! -f "$ps2db" ] && echo "GameIndex.yaml not found at $ps2db"
 
 echo "detecting drive..."
 drive=$(diskutil list | awk '/^\/dev\/disk/ {d=$1} /\(external, physical\)/ {print d; exit}')
@@ -25,7 +27,14 @@ echo "serial: $serial"
 id=$(echo "$serial" | sed 's/_/-/; s/\.//')
 
 echo "looking up name..."
-name=$(grep -A1 "$id" "$db" 2>/dev/null | grep 'name:' | sed 's/.*name: "\(.*\)"/\1/')
+name=$(grep -A1 "^$id:" "$psxdb" | grep 'name:' | sed 's/.*name:[[:space:]]*"\?\(.*\)"\?/\1/' | head -n1)
+
+if [ -n "$name" ]; then
+  echo "matched in psxdb"
+else
+  name=$(grep -A1 "$id" "$ps2db" 2>/dev/null | grep 'name:' | sed 's/.*name: "\(.*\)"/\1/')
+  [ -n "$name" ] && echo "matched in ps2db"
+fi
 
 if [ -z "$name" ]; then
   echo "not found $serial"

@@ -1,61 +1,70 @@
 # psx2rip
 
-`psx2rip` is a lightweight Bash utility for Unix-like systems to pull PSX (Playstation 1) and PS2 games from disc into compressed CHD format. It was built and tested on macOS (Apple Silicon).
+`psx2rip` is a lightweight Bash utility for Unix-like systems to pull PSX (PlayStation 1) and PS2 games from disc into compressed CHD format. It was built and tested on macOS (Apple Silicon).
 
 The utility will likely work on Linux using Homebrew, but has not been tested.
+
+---
 
 ## Support
 
 ### PSX
 
-PSX ripping is fully supported. Automatic game name detection is under development; planning to pull [gamedb.yaml](https://github.com/stenzek/duckstation/blob/master/data/resources/gamedb.yaml) from Duckstation. For now game titles must be entered manually.
+PSX ripping is fully supported. Automatic game name detection is supported via DuckStation’s database `gamedb.yaml`. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should contribute upstream.
 
 ### PS2
 
-Both CD and DVD based PS2 titles are supported. The utility pulls `GameIndex.yaml` from [PCSX2](https://github.com/PCSX2/pcsx2/blob/master/bin/resources/GameIndex.yaml) in order to identify game titles from their Serial. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should [contribute](https://pcsx2.net/docs/contributing/).
+Both CD and DVD based PS2 titles are supported. The utility pulls `GameIndex.yaml` from PCSX2 in order to identify game titles from their serial. This is not foolproof and not all games are listed. If you find a game that isn't listed, you should contribute upstream.
+
+---
 
 ## Installation
 
 ### Pre-requisites
 
-The installation script requires `brew` which is available on Mac and Linux:
-[https://brew.sh/](https://brew.sh/)
-[https://docs.brew.sh/Homebrew-on-Linux](https://docs.brew.sh/Homebrew-on-Linux)
+The installation script requires `brew` which is available on macOS and Linux:
 
-### Installing the script
+- https://brew.sh/  
+- https://docs.brew.sh/Homebrew-on-Linux  
 
-To install simply download this repository and then run `install.sh`:
+---
 
-```
+### Installing
+
+```bash
 git clone https://github.com/thebillington/psx2rip
 bash install.sh
 ```
 
-The install script does a few things:
+The install script:
 
-1. Moves the `psx2rip` bash script to `/usr/local/bin` and makes it executable
-2. Downloads the `yaml` game databases from Duckstation and PCSX2
-3. Installs a few optional and required additional libraries via `brew`
-
-### Uninstalling
-
-To uninstall simply run the uninstall script:
-
-```
-bash uninstall.sh
-```
-
-This will delete the locally downloaded files and cleanup any libraries.
-
-## How it works
-
-The script automates three main steps: **disc detection → identification → ripping → compression**.
+1. Moves the `psx2rip` script to `/usr/local/bin`
+2. Downloads:
+   - DuckStation `gamedb.yaml` (PSX)
+   - PCSX2 `GameIndex.yaml` (PS2)
+3. Installs required tools via Homebrew
 
 ---
 
-### 1. Dependency and environment checks
+### Uninstalling
 
-At startup, required tools are verified:
+```bash
+bash uninstall.sh
+```
+
+Removes installed files and dependencies.
+
+---
+
+## How it works
+
+The script automates:
+
+**disc detection → identification → ripping → compression**
+
+---
+
+### 1. Dependency checks
 
 ```bash
 for cmd in diskutil grep awk sed dd; do
@@ -63,49 +72,37 @@ for cmd in diskutil grep awk sed dd; do
 done
 ```
 
-This ensures the system can:
-- detect drives (`diskutil`)
-- parse data (`grep`, `awk`, `sed`)
-- perform raw reads (`dd`)
-
 ---
 
-### 2. Game database availability
-
-The script expects a local YAML database:
+### 2. Database setup
 
 ```bash
-db="$HOME/.psx2rip/GameIndex.yaml"
-[ ! -f "$db" ] && echo "GameIndex.yaml not found at $db" && exit 1
+psxdb="$HOME/.psx2rip/gamedb.yaml"
+ps2db="$HOME/.psx2rip/GameIndex.yaml"
 ```
 
-This is used to map **disc serial → game name**.
+- `gamedb.yaml` → PSX (DuckStation)
+- `GameIndex.yaml` → PS2 (PCSX2)
 
 ---
 
-### 3. Optical drive detection
-
-The script identifies the first external optical drive:
+### 3. Drive detection
 
 ```bash
 drive=$(diskutil list | awk '/^\/dev\/disk/ {d=$1} /\(external, physical\)/ {print d; exit}')
-[ -z "$drive" ] && echo "no drive found" && exit 1
 ```
 
 ---
 
-### 4. Mounting and reading disc serial
-
-The disc is mounted and the PlayStation serial is extracted:
+### 4. Serial extraction
 
 ```bash
-diskutil mountDisk "$drive" >/dev/null
+diskutil mountDisk "$drive"
 
-serial=$(grep -o 'S[CL]ES_[0-9]\{3\}\.[0-9]\{2\}\|SLUS_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF 2>/dev/null | head -n1)
-[ -z "$serial" ] && echo "no serial found" && exit 1
+serial=$(grep -o 'S[CL]ES_[0-9]\{3\}\.[0-9]\{2\}\|SLUS_[0-9]\{3\}\.[0-9]\{2\}' /Volumes/*/SYSTEM.CNF | head -n1)
 ```
 
-The serial is normalized to match database format:
+Normalize format:
 
 ```bash
 id=$(echo "$serial" | sed 's/_/-/; s/\.//')
@@ -113,126 +110,96 @@ id=$(echo "$serial" | sed 's/_/-/; s/\.//')
 
 ---
 
-### 5. Game name lookup
+### 5. Game lookup
 
-The script attempts to resolve the game name from the database:
-
-```bash
-name=$(grep -A1 "$id" "$db" 2>/dev/null | grep 'name:' | sed 's/.*name: "\(.*\)"/\1/')
-```
-
-If no match is found, the user is prompted:
+PSX database:
 
 ```bash
-if [ -z "$name" ]; then
-  echo "not found $serial"
-  read -p "name: " name
-fi
+name=$(grep -A1 "^$id:" "$psxdb" | grep 'name:' | sed 's/.*name:[[:space:]]*"\?\(.*\)"\?/\1/' | head -n1)
 ```
+
+Fallback to PS2:
+
+```bash
+name=$(grep -A1 "$id" "$ps2db" | grep 'name:' | sed 's/.*name: "\(.*\)"/\1/')
+```
+
+Fallback to manual input if not found.
 
 ---
 
-### 6. Media type detection
-
-The disc type is determined using:
+### 6. Media detection
 
 ```bash
 media=$(diskutil info "$drive" | awk -F': ' '/Optical Media Type/ {print $2}')
 ```
 
-This distinguishes:
-- **CD** → PS1 or CD-based PS2
-- **DVD** → PS2
+- CD → PSX or CD-based PS2  
+- DVD → PS2  
 
 ---
 
-### 7. Unmount before ripping
-
-The disc is unmounted before raw access:
+### 7. Unmount
 
 ```bash
-diskutil unmountDisk "$drive" >/dev/null
+diskutil unmountDisk "$drive"
 ```
 
 ---
 
-### 8. Ripping and compression
+## Ripping
 
-The workflow branches based on media type.
-
----
-
-### CD (PSX and CD-based PS2)
-
-CD-based discs are dumped using `cdrdao` in raw mode:
+### CD (PSX / CD-based PS2)
 
 ```bash
 cdrdao read-cd --read-raw --datafile "$bin" "$toc"
-```
-
-This produces:
-- `.bin` (raw data)
-- `.toc` (track layout)
-
-The TOC is converted into a CUE file:
-
-```bash
 toc2cue "$toc" "$cue"
-```
-
-The CUE file is then used as input:
-
-```bash
 input="$cue"
 ```
 
-If `chdman` is available, the disc is compressed:
-
-```bash
-chdman createcd -i "$input" -o "$chd"
-```
-
-Temporary files are removed:
-
-```bash
-rm -f "$bin" "$toc" "$cue"
-```
+Produces:
+- `.bin`
+- `.toc`
+- `.cue`
 
 ---
 
 ### DVD (PS2)
 
-DVD-based discs are dumped using `dd`.
-
-With progress display (`pv` installed):
-
-```bash
-dd if="$drive" bs=4M 2>/dev/null | pv -s "$size" > "$iso"
-```
-
-Without `pv`:
-
 ```bash
 dd if="$drive" of="$iso" bs=4M status=progress
+input="$iso"
 ```
 
-The ISO is then compressed:
-
-```bash
-chdman createcd -i "$iso" -o "$chd"
-```
-
-Temporary ISO is removed:
-
-```bash
-rm -f "$iso"
-```
+(Uses `pv` if available for progress.)
 
 ---
 
-### Final output
+## Compression
 
-- Preferred: `.chd` (compressed, space-efficient)
-- Fallback: `.cue` or `.iso` if `chdman` is unavailable
+```bash
+chdman createcd -i "$input" -o "$chd"
+rm -f "$iso" "$bin" "$toc" "$cue"
+```
 
-The result is a clean, compressed, emulator-ready image suitable for use with DuckStation (PS1) or PCSX2 (PS2).
+If `chdman` is unavailable, raw output is kept.
+
+---
+
+## Output
+
+- Preferred: `.chd`
+- Fallback: `.cue` / `.iso`
+
+Compatible with:
+- DuckStation (PSX)
+- PCSX2 (PS2)
+
+---
+
+## Notes
+
+- Requires a compatible optical drive
+- Read errors may occur on damaged discs
+- Not all games exist in upstream databases
+- Manual naming fallback is always available
